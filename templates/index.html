@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PaperDesk</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<header class="top"><span class="brand">PaperDesk</span></header>
+<main class="wrap">
+{% set active = 'report' if report is not none else ('template' if (error and current == 'custom') or not error else 'upload') %}
+{% set order = ['template', 'upload', 'report'] %}
+<div class="layout">
+<ol class="rail" aria-label="Steps">
+  {% for step, label in [('template', 'Template'), ('upload', 'Upload'), ('report', 'Report')] %}
+  <li class="rail-item{% if step == active %} is-active{% elif order.index(step) < order.index(active) %} is-done{% endif %}" data-step="{{ step }}"><span class="num">{{ loop.index }}</span>{{ label }}</li>
+  {% endfor %}
+</ol>
+<div class="panel">
+<h1>{% if report is none %}Check your paper before you submit{% else %}Your report{% endif %}</h1>
+{% if report is none %}<p class="lead">Pre-submission check for your manuscript. It reports problems; it never rewrites your paper.</p>{% endif %}
+{% if error %}<p class="err"><b>{{ error }}</b></p>{% endif %}
+{% set blurbs = {
+  'ieee_conference': 'Conference papers: two columns, Roman headings',
+  'ieee_journal': 'IEEE Transactions and journals',
+  'springer_lncs': 'Springer proceedings: numbered headings',
+  'custom': "Read page size, margins and font from the journal's own template"} %}
+{% if report is none %}
+<form method="post" action="/check" enctype="multipart/form-data" data-active="{{ active }}">
+  <section data-panel="template"{% if active == 'template' %} class="is-active"{% endif %}>
+    <h2>Pick your template</h2>
+    <div class="cards">
+      {% for key, label in rulesets %}
+      <label class="card">
+        <input type="radio" name="ruleset" value="{{ key }}"{% if key == current %} checked{% endif %}>
+        <span class="card-title">{{ "Custom template" if key == "custom" else label }}</span>
+        <span class="card-note">{{ blurbs.get(key, '') }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="custom-template"{% if current != 'custom' %} data-hidden{% endif %}>
+      <p><small>Using Custom? Choose the journal's own blank template (.docx). Its page size, margins and
+        body font become the rules.</small><br><input type="file" name="template" accept=".docx"></p>
+    </div>
+    <p class="actions"><button type="button" class="primary" data-go="upload">Continue</button></p>
+  </section>
+  <section data-panel="upload"{% if active == 'upload' %} class="is-active"{% endif %}>
+    <h2>Upload your paper</h2>
+    <label class="drop">
+      <input type="file" name="paper" accept=".docx" required>
+      <span class="drop-text">Drop your .docx here, or browse</span>
+    </label>
+    {% if ai %}<p><label><input type="checkbox" name="wording"> Also show optional wording suggestions.
+       Your paragraph text is sent to an AI service to write them.</label></p>{% endif %}
+    <p class="actions"><button type="submit" class="primary">Check my paper</button>
+      <button type="button" class="link" data-go="template">Back</button></p>
+    <p class="privacy"><small>Your file is deleted right after the check. Nothing is stored. Word (.docx) only, up to 10 MB.</small></p>
+  </section>
+</form>
+{% else %}
+<h2 class="sr-only">Result: {{ report.errors|length }} errors, {{ report.warns|length }} warnings</h2>
+<div class="summary">
+  <div class="stat stat-error"><strong data-count="errors">{{ report.errors|length }}</strong><span>errors</span></div>
+  <div class="stat stat-warn"><strong data-count="warnings">{{ report.warns|length }}</strong><span>warnings</span></div>
+</div>
+<p class="template-line"><small>Template: {{ rules }}</small></p>
+{% if notice %}<div class="warn banner"><b>{{ notice }}</b></div>{% endif %}
+{% if not report.errors and not report.warns %}<p class="clean">No problems found against this rule set.</p>{% endif %}
+{% if report.errors or report.warns %}<div class="findings" tabindex="0" role="region" aria-label="Findings">
+{% for x in report.errors %}<div class="finding finding-error"><span class="tag tag-error">Error</span> <b>{{ x.rule }}</b>: {{ x.detail }}<br>
+  <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
+{% for x in report.warns %}<div class="finding finding-warn"><span class="tag tag-warn">Warning</span> <b>{{ x.rule }}</b>: {{ x.detail }}<br>
+  <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
+</div>{% endif %}
+{% if report.suggestions %}<h2>Optional wording suggestions</h2>
+<p><small>Language only. Check each one yourself and follow your publisher's policy on disclosing AI assistance.</small></p>
+{% for s in report.suggestions %}<div class="sug"><small>Paragraph {{ s.paragraph }} &mdash; {{ s.reason }}</small><br>
+ <b>Original:</b> {{ s.original }}<br><b>Suggestion:</b> {{ s.suggestion }}</div>{% endfor %}{% endif %}
+<p class="actions"><a class="button" href="/">Check another paper</a></p>
+<small>This tool checks formatting against a draft rule set; confirm requirements with your conference or journal.</small>
+{% endif %}
+</div>
+</div>
+</main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

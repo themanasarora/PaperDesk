@@ -41,3 +41,7 @@ A value of `None` means "not checked", never "guess". All three stay `verified: 
 Choose "Custom" and upload the journal's own blank template (.docx). `template_rules.rules_from_template()` reads its page
 size, margins and body font/size, and the paper is checked against those only (plus citation/reference consistency).
 This is the most reliable way to get exact layout numbers for any journal, including the unchecked ones above.
+
+## Look and feel
+
+The page is one Jinja template (`templates/index.html`) with `static/style.css` and a small `static/app.js` for the step rail. With JavaScript off, every step stays visible and the form still posts to `/check`. The check logic does not depend on the page; `test_frontend.py` covers the page itself.
