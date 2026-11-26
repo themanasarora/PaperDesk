@@ -1,9 +1,18 @@
-"""IEEE conference-style rule set used by checker.py.
+"""IEEE conference rule set. Partly checked on 2026-11-27, so still `verified: False`.
 
-IMPORTANT: these values come from general knowledge of the IEEE conference
-template. Before charging anyone, compare each value with the official template
-and the target conference's own author instructions, and edit this file.
-Each rule can be tuned here without touching checker.py.
+Confirmed from IEEE-hosted conference template instructions (ewh.ieee.org example paper;
+current Word templates at the `source` page): US Letter; margins top 0.75 in, bottom 1 in,
+sides 0.625 in; Times New Roman preferred (the template says "preferred", not required);
+main text 10 pt; Roman-numeral section headings (optional in the template); tables
+numbered with Roman numerals ("TABLE I"); figures labelled "Fig. 1"; numeric [1]
+references; current template keyword line reads "Keywords".
+
+NOT confirmed: the abstract word range. The conference template states no limit
+(150-250 is the IEEE Transactions rule and a common conference convention), so check it
+against your conference's own call for papers.
+
+To mark this rule set verified: confirm the abstract range, set `verified` to True and
+`last_verified` to the date (YYYY-MM-DD).
 """
 
 RULES = {
@@ -19,6 +28,7 @@ RULES = {
     # Abstract
     "abstract_words": (150, 250),
     "require_index_terms": True,
+    "keywords_label": "Keywords",
     # Section headings: "roman" = I., II., III. ...; "numeric" = 1, 1.1, 2 ...
     "heading_style": "roman",
     # References
@@ -27,7 +37,7 @@ RULES = {
     "flag_double_spaces": True,
     # Not yet checked against the official template; see rules/__init__.py
     "verified": False,
-    "source": "",
+    "source": "https://www.ieee.org/conferences/publishing/templates.html",
     "last_verified": None,
     "require_figure_table_references": True,
 }

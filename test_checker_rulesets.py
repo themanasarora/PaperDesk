@@ -88,3 +88,14 @@ def test_springer_reference_without_final_period_is_not_a_heading(build_docx):
     paras = FRONT + ["1 Introduction", "See [1].", "2 Methods", "text", "References",
                      "1 Smith, J.: A paper. LNCS 1234 (2020)"]
     assert "Heading numbering" not in rules_hit(checker.check(build_docx(paras, page=A4), SPRINGER))
+
+
+def test_unknown_values_are_skipped_not_guessed(build_docx):
+    paras = FRONT + ["This is a body paragraph with a good number of words so that the checker treats it as body text."]
+    path = build_docx(paras, margins=(1.0, 1.0, 1.0, 1.0))
+    base = get_ruleset("ieee_conference")
+    unknown = with_defaults({**base, "margins_in": None, "body_font": None, "body_size_pt": None,
+                             "abstract_words": None, "page_width_in": None, "page_height_in": None})
+    checked = {"Margin", "Body text style", "Abstract length", "Page size"}
+    assert {"Margin", "Body text style"} <= rules_hit(checker.check(path, base))  # test is not vacuous
+    assert not (checked & rules_hit(checker.check(path, unknown)))

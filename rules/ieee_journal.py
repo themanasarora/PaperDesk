@@ -1,20 +1,27 @@
-"""IEEE journal (Transactions) rule set: PLACEHOLDER.
+"""IEEE journal (Transactions) rule set. Partly checked on 2026-11-27, so `verified: False`.
 
-Numeric values are copied from the conference rule set and have NOT been
-checked against the official journal template. Before relying on this:
-check every value, then fill in `source` (official URL), `last_verified`
-(ISO date, e.g. "2026-12-01") and set `verified` to True.
+Confirmed from the IEEE Transactions author instructions: abstract must be 150-250 words;
+keyword line is "Index Terms"; Roman-numeral section headings; tables numbered with Roman
+numerals; figures labelled "Fig."; numeric [1] references.
+
+NOT confirmed (the instructions say to use the official Word template and do not state
+them), so they are `None`, which means "not checked": page size, margins, body font and size.
+Fill them in from the official template, or use the Custom option with the official
+template .docx, which reads them from the file.
+
+To mark this rule set verified: fill the None values, set `verified` to True and
+`last_verified` to the date (YYYY-MM-DD).
 """
 
 RULES = {
     "name": "IEEE journal",
     "page_name": "US Letter",
-    "page_width_in": 8.5,
-    "page_height_in": 11.0,
-    "margins_in": {"top": 0.75, "bottom": 1.0, "left": 0.625, "right": 0.625},
+    "page_width_in": None,
+    "page_height_in": None,
+    "margins_in": None,
     "margin_tolerance_in": 0.05,
-    "body_font": "Times New Roman",
-    "body_size_pt": 10,
+    "body_font": None,
+    "body_size_pt": None,
     "abstract_words": (150, 250),
     "require_index_terms": True,
     "keywords_label": "Index Terms",
@@ -24,6 +31,6 @@ RULES = {
     "flag_double_spaces": True,
     "require_figure_table_references": True,
     "verified": False,
-    "source": "",
+    "source": "https://journals.ieeeauthorcenter.ieee.org/create-your-ieee-journal-article/authoring-tools-and-templates",
     "last_verified": None,
 }

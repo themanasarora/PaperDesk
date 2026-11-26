@@ -147,14 +147,15 @@ def check(path: str, rules=None):
     # ---- page setup ----
     sec = doc.sections[0]
     w, h = sec.page_width.inches, sec.page_height.inches
-    if abs(w - rules["page_width_in"]) > 0.02 or abs(h - rules["page_height_in"]) > 0.02:
+    if rules["page_width_in"] is not None and (
+            abs(w - rules["page_width_in"]) > 0.02 or abs(h - rules["page_height_in"]) > 0.02):
         add("ERROR", "Page size", "document",
             f"Page is {w:.2f} x {h:.2f} in; expected {rules['page_width_in']} x {rules['page_height_in']} in ({rules['page_name']}).",
             f"Set the paper size to {rules['page_name']}.")
     tol = rules["margin_tolerance_in"]
     got = {"top": sec.top_margin.inches, "bottom": sec.bottom_margin.inches,
            "left": sec.left_margin.inches, "right": sec.right_margin.inches}
-    for side, want in rules["margins_in"].items():
+    for side, want in (rules["margins_in"] or {}).items():  # None = not checked
         if abs(got[side] - want) > tol:
             add("ERROR", "Margin", "document",
                 f"{side.capitalize()} margin is {got[side]:.2f} in; expected {want} in.",
@@ -162,20 +163,21 @@ def check(path: str, rules=None):
 
     # ---- body font and size ----
     for i, (p, lab) in enumerate(zip(paras, labels)):
-        if lab != "body":
+        if lab != "body" or (rules["body_font"] is None and rules["body_size_pt"] is None):
             continue
         bad = set()
         for run in p.runs:
             if not run.text.strip():
                 continue
             name, size = effective_font(doc, p, run)
-            if name != rules["body_font"]:
+            if rules["body_font"] is not None and name != rules["body_font"]:
                 bad.add(f"font {name}")
-            if size != rules["body_size_pt"]:
+            if rules["body_size_pt"] is not None and size != rules["body_size_pt"]:
                 bad.add(f"size {size}")
         if bad:
             add("ERROR", "Body text style", f"paragraph {i + 1}: \"{snippet(p.text)}\"",
-                f"Found {', '.join(sorted(bad))}; expected {rules['body_font']} {rules['body_size_pt']} pt.",
+                f"Found {', '.join(sorted(bad))}; expected {rules['body_font'] or 'any font'}"
+                f" {rules['body_size_pt'] or 'any size'} pt.",
                 "Apply the body text style to this paragraph.")
 
     # ---- abstract ----
@@ -185,7 +187,7 @@ def check(path: str, rules=None):
     else:
         text = re.sub(r"^abstract\s*[—\-:–]*\s*", "", paras[abs_idx[0]].text.strip(), flags=re.I)
         words = len(text.split())
-        lo, hi = rules["abstract_words"]
+        lo, hi = rules["abstract_words"] or (0, float("inf"))  # None = not checked
         if words < lo or words > hi:
             add("ERROR", "Abstract length", f"paragraph {abs_idx[0] + 1}",
                 f"Abstract has {words} words; expected {lo}-{hi}.",
