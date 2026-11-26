@@ -6,13 +6,15 @@ or stale. Add a template by creating rules/<key>.py and registering it below.
 """
 import datetime
 
-from . import ieee_conference
+from . import ieee_conference, ieee_journal, springer_lncs
 
 DEFAULT = "ieee_conference"
 STALE_AFTER_DAYS = 180
 
 RULESETS = {
     "ieee_conference": ieee_conference.RULES,
+    "ieee_journal": ieee_journal.RULES,
+    "springer_lncs": springer_lncs.RULES,
 }
 
 DEFAULTS = {

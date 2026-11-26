@@ -45,3 +45,33 @@ def test_notice_fresh_is_none():
 def test_notice_verified_without_date():
     rules = with_defaults({"verified": True, "last_verified": None})
     assert "not recorded" in rules_notice(rules, TODAY)
+
+
+REQUIRED_KEYS = {"name", "page_width_in", "page_height_in", "margins_in", "margin_tolerance_in",
+                 "body_font", "body_size_pt", "abstract_words", "require_index_terms",
+                 "heading_style", "table_numbering", "keywords_label", "flag_double_spaces",
+                 "require_figure_table_references"}
+
+
+def test_all_three_rulesets_registered():
+    assert {"ieee_conference", "ieee_journal", "springer_lncs"} <= set(RULESETS)
+
+
+def test_new_rulesets_are_unverified():
+    assert get_ruleset("ieee_journal")["verified"] is False
+    assert get_ruleset("springer_lncs")["verified"] is False
+
+
+def test_springer_structure():
+    r = get_ruleset("springer_lncs")
+    assert (r["heading_style"], r["table_numbering"], r["page_name"], r["keywords_label"]) == \
+        ("numeric", "arabic", "A4", "Keywords")
+
+
+def test_ieee_journal_structure():
+    assert get_ruleset("ieee_journal")["heading_style"] == "roman"
+
+
+def test_every_ruleset_has_required_keys():
+    for key in RULESETS:
+        assert REQUIRED_KEYS <= set(get_ruleset(key)), key
