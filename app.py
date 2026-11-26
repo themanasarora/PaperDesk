@@ -11,7 +11,7 @@ from flask import Flask, render_template_string, request
 
 import checker
 import suggest
-from rules import DEFAULT, get_ruleset
+from rules import DEFAULT, RULESETS, get_ruleset, rules_notice
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
@@ -30,14 +30,20 @@ PAGE = """
 {% if error %}<p class="err"><b>{{ error }}</b></p>{% endif %}
 {% if report is none %}
 <form method="post" action="/check" enctype="multipart/form-data">
+  <p><label>Template:
+    <select name="ruleset">{% for key, label in rulesets %}
+      <option value="{{ key }}"{% if key == current %} selected{% endif %}>{{ label }}</option>{% endfor %}
+    </select></label></p>
   <p><input type="file" name="paper" accept=".docx" required></p>
   {% if ai %}<p><label><input type="checkbox" name="wording"> Also show optional wording suggestions
      (sends paragraph text to an AI service)</label></p>{% endif %}
   <p><button type="submit">Check my paper</button></p>
-  <small>Word (.docx) only, up to 10 MB. Rule set: {{ rules }}.</small>
+  <small>Word (.docx) only, up to 10 MB.</small>
 </form>
 {% else %}
 <h2>Result: {{ report.errors|length }} errors, {{ report.warns|length }} warnings</h2>
+<p><small>Template: {{ rules }}</small></p>
+{% if notice %}<div class="warn"><b>{{ notice }}</b></div>{% endif %}
 {% if not report.errors and not report.warns %}<p>No problems found against this rule set.</p>{% endif %}
 {% for x in report.errors %}<div class="err"><b>{{ x.rule }}</b>: {{ x.detail }}<br>
   <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
@@ -53,9 +59,12 @@ PAGE = """
 """
 
 
-def render(report=None, error=None, status=200):
-    return render_template_string(PAGE, report=report, error=error, ai=suggest.available(),
-                                  rules=get_ruleset(DEFAULT)["name"]), status
+def render(report=None, error=None, status=200, ruleset=DEFAULT):
+    rules = get_ruleset(ruleset)
+    return render_template_string(
+        PAGE, report=report, error=error, ai=suggest.available(), rules=rules["name"],
+        notice=rules_notice(rules), current=ruleset,
+        rulesets=[(k, get_ruleset(k)["name"]) for k in RULESETS]), status
 
 
 @app.get("/")
@@ -65,6 +74,10 @@ def index():
 
 @app.post("/check")
 def check_upload():
+    key = request.form.get("ruleset") or DEFAULT
+    if key not in RULESETS:
+        return render(error="Unknown template.", status=400)
+    rules = get_ruleset(key)
     f = request.files.get("paper")
     if not f or not f.filename:
         return render(error="Please choose a .docx file.", status=400)
@@ -80,7 +93,7 @@ def check_upload():
         f.save(tmp)
         tmp.close()
         try:
-            issues = checker.check(tmp.name)
+            issues = checker.check(tmp.name, rules)
             wording = []
             if request.form.get("wording") and suggest.available():
                 from docx import Document
@@ -106,7 +119,7 @@ def check_upload():
         "warns": [x for x in issues if x.severity == "WARN"],
         "suggestions": wording,
     }
-    return render(report=report)
+    return render(report=report, ruleset=key)
 
 
 if __name__ == "__main__":

@@ -1,6 +1,6 @@
 # Format selector: short design
 
-Status: awaiting approval from Manas. Nothing built yet.
+Status: approved. Implementation plan: docs/superpowers/plans/2026-11-27-format-selector.md
 
 ## Intent
 A scholar picks the template their paper targets (IEEE conference, IEEE journal, Springer LNCS, later "Custom") and PaperDesk checks against that rule set only. Why: scholars submit to many templates, and a single IEEE rule set would give wrong errors for everyone else.

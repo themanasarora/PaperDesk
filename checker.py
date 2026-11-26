@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from docx import Document
 
-from rules import DEFAULT, get_ruleset, with_defaults
+from rules import DEFAULT, RULESETS, get_ruleset, rules_notice, with_defaults
 
 ROMAN = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
 HEADING_RE = re.compile(r"^([IVXLC]+)\.\s+[A-Z][A-Z0-9 ,&\-]+$")
@@ -285,6 +285,9 @@ def to_markdown(path, issues, rules=None):
     lines = [f"# PaperDesk check report", "",
              f"- File: `{path}`", f"- Rule set: {rules['name']}",
              f"- Result: **{len(errors)} errors, {len(warns)} warnings**", ""]
+    notice = rules_notice(rules)
+    if notice:
+        lines[4:4] = [f"- **{notice}**"]
     if not issues:
         lines.append("No problems found against this rule set.")
     for title, group in (("Errors (fix before submitting)", errors), ("Warnings (please review)", warns)):
@@ -301,10 +304,12 @@ def to_markdown(path, issues, rules=None):
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()
     ap.add_argument("docx")
+    ap.add_argument("--ruleset", choices=sorted(RULESETS), default=DEFAULT)
     ap.add_argument("-o", "--out")
     args = ap.parse_args()
-    found = check(args.docx)
-    md = to_markdown(args.docx, found)
+    chosen = get_ruleset(args.ruleset)
+    found = check(args.docx, chosen)
+    md = to_markdown(args.docx, found, chosen)
     if args.out:
         open(args.out, "w").write(md)
         print("wrote", args.out)
