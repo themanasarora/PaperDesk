@@ -75,3 +75,15 @@ def test_ieee_journal_structure():
 def test_every_ruleset_has_required_keys():
     for key in RULESETS:
         assert REQUIRED_KEYS <= set(get_ruleset(key)), key
+
+
+@pytest.mark.parametrize("bad", ["01/12/2026", "2026-13-01", "2026-1-1", 20261201])
+def test_notice_malformed_date_does_not_crash(bad):
+    notice = rules_notice(with_defaults({"verified": True, "last_verified": bad}), TODAY)
+    assert "unreadable" in notice
+
+
+def test_registered_last_verified_values_are_iso_dates():
+    for key in RULESETS:
+        v = get_ruleset(key)["last_verified"]
+        assert v is None or datetime.date.fromisoformat(v)

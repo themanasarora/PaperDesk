@@ -54,3 +54,10 @@ def test_markdown_report_contains_notice():
     r = get_ruleset("springer_lncs")
     md = checker.to_markdown("x.docx", checker.check("samples/test_paper_clean.docx", r), r)
     assert "Unverified draft rules" in md
+
+
+def test_template_choice_kept_after_rejected_upload(client):
+    r = client.post("/check", data={"ruleset": "springer_lncs", "paper": (io.BytesIO(b"hi"), "notes.txt")},
+                    content_type="multipart/form-data")
+    assert r.status_code == 400
+    assert b'<option value="springer_lncs" selected' in r.data

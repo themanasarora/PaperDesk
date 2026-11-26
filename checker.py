@@ -20,6 +20,7 @@ HEADING_RE = re.compile(r"^([IVXLC]+)\.\s+[A-Z][A-Z0-9 ,&\-]+$")
 CAPTION_FIG_RE = re.compile(r"^Fig\.\s*(\d+)\.")
 CAPTION_TABLE_RE = re.compile(r"^TABLE\s+([IVXLC]+)\.", re.I)
 REF_LINE_RE = re.compile(r"^\[(\d+)\]\s+")
+REF_DOTTED_RE = re.compile(r"^(\d+)\.?\s+\S")
 CITE_RE = re.compile(r"\[([\d,\s–\-]+)\]")
 FIG_REF_RE = re.compile(r"\bFig\.?\s*(\d+)")
 TABLE_REF_RE = re.compile(r"\bTable\s+([IVXLC]+)\b", re.I)
@@ -82,6 +83,10 @@ def table_numbering(rules):
     return CAPTION_TABLE_RE, TABLE_REF_RE, lambda g: roman_to_int(g.upper()), int_to_roman
 
 
+def reference_re(rules):
+    return REF_DOTTED_RE if rules["reference_style"] == "dotted" else REF_LINE_RE
+
+
 def snippet(text: str, n: int = 60) -> str:
     text = " ".join(text.split())
     return text if len(text) <= n else text[: n - 3] + "..."
@@ -92,6 +97,9 @@ def classify(paragraphs, rules=None):
     caption_fig, caption_table, reference, body, blank."""
     rules = with_defaults(rules or get_ruleset(DEFAULT))
     cap_table_re = table_numbering(rules)[0]
+    ref_re = reference_re(rules)
+    dotted = rules["reference_style"] == "dotted"
+    in_refs = False
     numeric = rules["heading_style"] == "numeric"
     labels = []
     seen_abstract = False
@@ -108,14 +116,15 @@ def classify(paragraphs, rules=None):
             labels.append("abstract")
         elif t.lower().startswith("index terms") or t.lower().startswith("keywords"):
             labels.append("index")
+        elif ref_re.match(t) and (in_refs or not dotted):
+            labels.append("reference")
         elif (is_numeric_heading(t) or t.lower() == "references") if numeric else (HEADING_RE.match(t) or t == "REFERENCES"):
+            in_refs = in_refs or t.lower() == "references"
             labels.append("heading")
         elif CAPTION_FIG_RE.match(t):
             labels.append("caption_fig")
         elif cap_table_re.match(t):
             labels.append("caption_table")
-        elif REF_LINE_RE.match(t):
-            labels.append("reference")
         else:
             labels.append("body")
     return labels
@@ -216,7 +225,7 @@ def check(path: str, rules=None):
     ref_nums = []
     for p, lab in zip(paras, labels):
         if lab == "reference":
-            ref_nums.append(int(REF_LINE_RE.match(p.text.strip()).group(1)))
+            ref_nums.append(int(reference_re(rules).match(p.text.strip()).group(1)))
     cited = {}
     for i, (p, lab) in enumerate(zip(paras, labels)):
         if lab in ("body", "abstract"):

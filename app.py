@@ -80,13 +80,13 @@ def check_upload():
     rules = get_ruleset(key)
     f = request.files.get("paper")
     if not f or not f.filename:
-        return render(error="Please choose a .docx file.", status=400)
+        return render(error="Please choose a .docx file.", status=400, ruleset=key)
     if not f.filename.lower().endswith(".docx"):
-        return render(error="Only Word .docx files are supported.", status=400)
+        return render(error="Only Word .docx files are supported.", status=400, ruleset=key)
     head = f.stream.read(4)
     f.stream.seek(0)
     if head != b"PK\x03\x04":  # .docx is a zip file
-        return render(error="That file does not look like a valid .docx.", status=400)
+        return render(error="That file does not look like a valid .docx.", status=400, ruleset=key)
 
     tmp = tempfile.NamedTemporaryFile(suffix=".docx", delete=False)
     try:
@@ -107,7 +107,7 @@ def check_upload():
                     wording = []  # suggestions are optional; the check result still shows
         except Exception:
             return render(error="Could not read this document. Try re-saving it as .docx from Word.",
-                          status=400)
+                          status=400, ruleset=key)
     finally:
         try:
             os.unlink(tmp.name)

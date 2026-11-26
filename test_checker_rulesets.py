@@ -73,3 +73,18 @@ def test_arabic_table_without_reference_is_flagged(build_docx):
 def test_arabic_table_reference_without_caption_is_flagged(build_docx):
     hit = rules_hit(checker.check(build_docx(FRONT + ["See Table 2 for results."]), NUMERIC))
     assert "Table referenced but missing" in hit
+
+
+SPRINGER = get_ruleset("springer_lncs")
+
+
+def test_springer_dotted_references_give_no_false_citation_errors(build_docx):
+    paras = FRONT + ["1 Introduction", "See [1] and [2].", "References",
+                     "1. Smith, J.: Paper. LNCS (2020).", "2. Doe, K.: Other. LNCS (2021)."]
+    assert "Citation without reference" not in rules_hit(checker.check(build_docx(paras, page=A4), SPRINGER))
+
+
+def test_springer_reference_without_final_period_is_not_a_heading(build_docx):
+    paras = FRONT + ["1 Introduction", "See [1].", "2 Methods", "text", "References",
+                     "1 Smith, J.: A paper. LNCS 1234 (2020)"]
+    assert "Heading numbering" not in rules_hit(checker.check(build_docx(paras, page=A4), SPRINGER))

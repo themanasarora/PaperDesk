@@ -22,6 +22,7 @@ DEFAULTS = {
     "heading_style": "roman",  # "roman" or "numeric"
     "keywords_label": "Index Terms",
     "table_numbering": "roman",  # "roman" or "arabic"
+    "reference_style": "bracket",  # "bracket" = [1] ...; "dotted" = "1. Author..." after the References heading
     "verified": False,
     "source": "",
     "last_verified": None,
@@ -45,7 +46,10 @@ def rules_notice(rules: dict, today: datetime.date | None = None) -> str | None:
     if not last:
         return "Rules were verified but the date is not recorded; confirm they are current."
     today = today or datetime.date.today()
-    age = (today - datetime.date.fromisoformat(last)).days
+    try:
+        age = (today - datetime.date.fromisoformat(last)).days
+    except (ValueError, TypeError):
+        return "Rules verification date is unreadable (use YYYY-MM-DD); confirm the rules are current."
     if age > STALE_AFTER_DAYS:
         return f"Rules last verified on {last} ({age} days ago) and may be out of date."
     return None

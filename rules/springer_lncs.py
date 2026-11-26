@@ -21,7 +21,7 @@ RULES = {
     "keywords_label": "Keywords",
     "heading_style": "numeric",
     "table_numbering": "arabic",
-    "reference_style": "numeric",
+    "reference_style": "dotted",
     "flag_double_spaces": True,
     "require_figure_table_references": True,
     "verified": False,

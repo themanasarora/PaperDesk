@@ -20,7 +20,7 @@ RULES = {
     "keywords_label": "Index Terms",
     "heading_style": "roman",
     "table_numbering": "roman",
-    "reference_style": "numeric",
+    "reference_style": "bracket",
     "flag_double_spaces": True,
     "require_figure_table_references": True,
     "verified": False,
