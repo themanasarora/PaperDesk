@@ -47,3 +47,52 @@ def test_form_works_without_script(client):  # all steps in the markup, file inp
 
 def test_script_is_served(client):
     assert client.get("/static/app.js").status_code == 200
+
+
+import io
+
+CLEAN = open("samples/test_paper_clean.docx", "rb").read()
+FLAWED = open("samples/test_paper_flawed.docx", "rb").read()
+
+
+def post_paper(client, data, **form):
+    body = {"paper": (io.BytesIO(data), "p.docx"), **form}
+    return client.post("/check", data=body, content_type="multipart/form-data")
+
+
+def test_report_shows_count_cards(client):  # flawed sample under IEEE conference: 9 errors, 3 warnings
+    html = post_paper(client, FLAWED).data.decode()
+    assert 'data-count="errors">9<' in html and 'data-count="warnings">3<' in html
+    assert 'class="finding finding-error"' in html and 'data-step="report"' in html
+    assert 'class="rail-item is-active" data-step="report"' in html
+
+
+def test_clean_paper_shows_zero_and_no_problems(client):
+    html = post_paper(client, CLEAN).data.decode()
+    assert 'data-count="errors">0<' in html and 'data-count="warnings">0<' in html
+    assert "No problems found against this rule set." in html
+
+
+def test_oversize_upload_is_friendly(client):
+    big = (io.BytesIO(b"PK\x03\x04" + b"0" * (10 * 1024 * 1024 + 1)), "big.docx")
+    r = client.post("/check", data={"ruleset": "ieee_conference", "paper": big},
+                    content_type="multipart/form-data")
+    assert r.status_code == 413 and b"File is larger than 10 MB." in r.data
+    assert b"Check your paper before you submit" in r.data
+
+
+def test_template_filename_is_escaped(client):
+    from docx import Document
+    buf = io.BytesIO()
+    Document().save(buf)
+    data = {"paper": (io.BytesIO(CLEAN), "p.docx"), "ruleset": "custom",
+            "template": (io.BytesIO(buf.getvalue()), "<img src=x onerror=1>.docx")}
+    r = client.post("/check", data=data, content_type="multipart/form-data")
+    assert r.status_code == 200
+    assert b"<img src=x" not in r.data and b"&lt;img src=x" in r.data
+
+
+def test_error_keeps_template_and_message(client):
+    r = client.post("/check", data={"ruleset": "springer_lncs"}, content_type="multipart/form-data")
+    assert r.status_code == 400 and b"Please choose a .docx file." in r.data
+    assert b'name="ruleset" value="springer_lncs" checked' in r.data

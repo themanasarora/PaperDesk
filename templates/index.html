@@ -59,19 +59,23 @@
   </section>
 </form>
 {% else %}
-<h2>Result: {{ report.errors|length }} errors, {{ report.warns|length }} warnings</h2>
-<p><small>Template: {{ rules }}</small></p>
-{% if notice %}<div class="warn"><b>{{ notice }}</b></div>{% endif %}
-{% if not report.errors and not report.warns %}<p>No problems found against this rule set.</p>{% endif %}
-{% for x in report.errors %}<div class="err"><b>{{ x.rule }}</b>: {{ x.detail }}<br>
+<h2 class="sr-only">Result: {{ report.errors|length }} errors, {{ report.warns|length }} warnings</h2>
+<div class="summary">
+  <div class="stat stat-error"><strong data-count="errors">{{ report.errors|length }}</strong><span>errors</span></div>
+  <div class="stat stat-warn"><strong data-count="warnings">{{ report.warns|length }}</strong><span>warnings</span></div>
+</div>
+<p class="template-line"><small>Template: {{ rules }}</small></p>
+{% if notice %}<div class="warn banner"><b>{{ notice }}</b></div>{% endif %}
+{% if not report.errors and not report.warns %}<p class="clean">No problems found against this rule set.</p>{% endif %}
+{% for x in report.errors %}<div class="finding finding-error"><span class="tag tag-error">Error</span> <b>{{ x.rule }}</b>: {{ x.detail }}<br>
   <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
-{% for x in report.warns %}<div class="warn"><b>{{ x.rule }}</b>: {{ x.detail }}<br>
+{% for x in report.warns %}<div class="finding finding-warn"><span class="tag tag-warn">Warning</span> <b>{{ x.rule }}</b>: {{ x.detail }}<br>
   <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
 {% if report.suggestions %}<h2>Optional wording suggestions</h2>
 <p><small>Language only. Check each one yourself and follow your publisher's policy on disclosing AI assistance.</small></p>
 {% for s in report.suggestions %}<div class="sug"><small>Paragraph {{ s.paragraph }} &mdash; {{ s.reason }}</small><br>
  <b>Original:</b> {{ s.original }}<br><b>Suggestion:</b> {{ s.suggestion }}</div>{% endfor %}{% endif %}
-<p><a href="/">Check another paper</a></p>
+<p class="actions"><a class="button" href="/">Check another paper</a></p>
 <small>This tool checks formatting against a draft rule set; confirm requirements with your conference or journal.</small>
 {% endif %}
 </div>

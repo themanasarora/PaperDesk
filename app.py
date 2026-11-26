@@ -54,6 +54,11 @@ def rules_from_upload(tpl):
             pass
 
 
+@app.errorhandler(413)
+def too_large(_e):
+    return render(error="File is larger than 10 MB.", status=413)
+
+
 @app.get("/")
 def index():
     return render()
