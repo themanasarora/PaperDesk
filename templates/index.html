@@ -9,7 +9,16 @@
 <body>
 <header class="top"><span class="brand">PaperDesk</span></header>
 <main class="wrap">
-<h1>Check your paper before you submit</h1>
+{% set active = 'report' if report is not none else ('template' if (error and current == 'custom') or not error else 'upload') %}
+{% set order = ['template', 'upload', 'report'] %}
+<div class="layout">
+<ol class="rail" aria-label="Steps">
+  {% for step, label in [('template', 'Template'), ('upload', 'Upload'), ('report', 'Report')] %}
+  <li class="rail-item{% if step == active %} is-active{% elif order.index(step) < order.index(active) %} is-done{% endif %}" data-step="{{ step }}"><span class="num">{{ loop.index }}</span>{{ label }}</li>
+  {% endfor %}
+</ol>
+<div class="panel">
+<h1>{% if report is none %}Check your paper before you submit{% else %}Your report{% endif %}</h1>
 <p class="lead">Pre-submission check for your manuscript. It reports problems; it never rewrites your paper.</p>
 {% if error %}<p class="err"><b>{{ error }}</b></p>{% endif %}
 {% set blurbs = {
@@ -18,25 +27,36 @@
   'springer_lncs': 'Springer proceedings: numbered headings',
   'custom': "Read page size, margins and font from the journal's own template"} %}
 {% if report is none %}
-<form method="post" action="/check" enctype="multipart/form-data">
-  <h2>Pick your template</h2>
-  <div class="cards">
-    {% for key, label in rulesets %}
-    <label class="card">
-      <input type="radio" name="ruleset" value="{{ key }}"{% if key == current %} checked{% endif %}>
-      <span class="card-title">{{ label }}</span>
-      <span class="card-note">{{ blurbs.get(key, '') }}</span>
+<form method="post" action="/check" enctype="multipart/form-data" data-active="{{ active }}">
+  <section data-panel="template"{% if active == 'template' %} class="is-active"{% endif %}>
+    <h2>Pick your template</h2>
+    <div class="cards">
+      {% for key, label in rulesets %}
+      <label class="card">
+        <input type="radio" name="ruleset" value="{{ key }}"{% if key == current %} checked{% endif %}>
+        <span class="card-title">{{ label }}</span>
+        <span class="card-note">{{ blurbs.get(key, '') }}</span>
+      </label>
+      {% endfor %}
+    </div>
+    <div class="custom-template"{% if current != 'custom' %} data-hidden{% endif %}>
+      <p><small>Using Custom? Choose the journal's own blank template (.docx). Its page size, margins and
+        body font become the rules.</small><br><input type="file" name="template" accept=".docx"></p>
+    </div>
+    <p class="actions"><button type="button" class="primary" data-go="upload">Continue</button></p>
+  </section>
+  <section data-panel="upload"{% if active == 'upload' %} class="is-active"{% endif %}>
+    <h2>Upload your paper</h2>
+    <label class="drop">
+      <input type="file" name="paper" accept=".docx" required>
+      <span class="drop-text">Drop your .docx here, or browse</span>
     </label>
-    {% endfor %}
-  </div>
-  <p><small>Using Custom? Also choose the journal's own blank template (.docx); its page size, margins and
-    body font become the rules:</small><br><input type="file" name="template" accept=".docx"></p>
-  <h2>Upload your paper</h2>
-  <p><input type="file" name="paper" accept=".docx" required></p>
-  {% if ai %}<p><label><input type="checkbox" name="wording"> Also show optional wording suggestions
-     (sends paragraph text to an AI service)</label></p>{% endif %}
-  <p><button type="submit" class="primary">Check my paper</button></p>
-  <small>Word (.docx) only, up to 10 MB.</small>
+    {% if ai %}<p><label><input type="checkbox" name="wording"> Also show optional wording suggestions.
+       Your paragraph text is sent to an AI service to write them.</label></p>{% endif %}
+    <p class="actions"><button type="submit" class="primary">Check my paper</button>
+      <button type="button" class="link" data-go="template">Back</button></p>
+    <p class="privacy"><small>Your file is deleted right after the check. Nothing is stored. Word (.docx) only, up to 10 MB.</small></p>
+  </section>
 </form>
 {% else %}
 <h2>Result: {{ report.errors|length }} errors, {{ report.warns|length }} warnings</h2>
@@ -54,6 +74,9 @@
 <p><a href="/">Check another paper</a></p>
 <small>This tool checks formatting against a draft rule set; confirm requirements with your conference or journal.</small>
 {% endif %}
+</div>
+</div>
 </main>
+<script src="{{ url_for('static', filename='app.js') }}"></script>
 </body>
 </html>
