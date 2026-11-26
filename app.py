@@ -11,7 +11,7 @@ from flask import Flask, render_template_string, request
 
 import checker
 import suggest
-from rules_ieee import IEEE_CONFERENCE
+from rules import DEFAULT, get_ruleset
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
@@ -55,7 +55,7 @@ PAGE = """
 
 def render(report=None, error=None, status=200):
     return render_template_string(PAGE, report=report, error=error, ai=suggest.available(),
-                                  rules=IEEE_CONFERENCE["name"]), status
+                                  rules=get_ruleset(DEFAULT)["name"]), status
 
 
 @app.get("/")

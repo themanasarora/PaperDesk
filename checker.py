@@ -1,5 +1,5 @@
 """PaperDesk checker: reads a .docx and reports formatting, structure and
-citation-consistency problems against a rule set (see rules_ieee.py).
+citation-consistency problems against a rule set (see the rules/ package).
 
 Usage:
     python3 checker.py samples/test_paper_flawed.docx [-o reports/out.md]
@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from docx import Document
 
-from rules_ieee import IEEE_CONFERENCE
+from rules import DEFAULT, get_ruleset
 
 ROMAN = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
 HEADING_RE = re.compile(r"^([IVXLC]+)\.\s+[A-Z][A-Z0-9 ,&\-]+$")
@@ -109,7 +109,8 @@ def effective_font(doc, p, run):
     return name, (size.pt if size else None)
 
 
-def check(path: str, rules=IEEE_CONFERENCE):
+def check(path: str, rules=None):
+    rules = rules or get_ruleset(DEFAULT)
     doc = Document(path)
     paras = doc.paragraphs
     labels = classify(paras)
@@ -169,7 +170,7 @@ def check(path: str, rules=IEEE_CONFERENCE):
             "Add an 'Index Terms' line after the abstract.")
 
     # ---- heading order ----
-    if rules["roman_headings"]:
+    if rules["heading_style"] == "roman":
         seq = []
         for i, (p, lab) in enumerate(zip(paras, labels)):
             if lab == "heading":
@@ -248,7 +249,8 @@ def check(path: str, rules=IEEE_CONFERENCE):
     return issues
 
 
-def to_markdown(path, issues, rules=IEEE_CONFERENCE):
+def to_markdown(path, issues, rules=None):
+    rules = rules or get_ruleset(DEFAULT)
     errors = [x for x in issues if x.severity == "ERROR"]
     warns = [x for x in issues if x.severity == "WARN"]
     lines = [f"# PaperDesk check report", "",
