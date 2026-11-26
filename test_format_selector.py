@@ -22,9 +22,9 @@ def post(client, **form):
 
 def test_form_lists_every_ruleset(client):
     html = client.get("/").data.decode()
-    assert '<select name="ruleset"' in html
+    assert 'type="radio" name="ruleset"' in html
     for key in RULESETS:
-        assert f'<option value="{key}"' in html
+        assert f'name="ruleset" value="{key}"' in html
 
 
 def test_missing_ruleset_defaults_to_ieee_conference(client):
@@ -60,7 +60,7 @@ def test_template_choice_kept_after_rejected_upload(client):
     r = client.post("/check", data={"ruleset": "springer_lncs", "paper": (io.BytesIO(b"hi"), "notes.txt")},
                     content_type="multipart/form-data")
     assert r.status_code == 400
-    assert b'<option value="springer_lncs" selected' in r.data
+    assert b'name="ruleset" value="springer_lncs" checked' in r.data
 
 
 def a4_template_bytes():
@@ -84,7 +84,7 @@ def post_custom(client, template, **extra):
 
 def test_form_offers_custom_and_template_upload(client):
     html = client.get("/").data.decode()
-    assert '<option value="custom"' in html and 'name="template"' in html
+    assert 'name="ruleset" value="custom"' in html and 'name="template"' in html
 
 
 def test_custom_uses_uploaded_template_rules(client):
@@ -96,7 +96,7 @@ def test_custom_uses_uploaded_template_rules(client):
 def test_custom_without_template_is_rejected_and_stays_selected(client):
     r = post_custom(client, None)
     assert r.status_code == 400
-    assert b"Custom needs a template .docx." in r.data and b'<option value="custom" selected' in r.data
+    assert b"Custom needs a template .docx." in r.data and b'name="ruleset" value="custom" checked' in r.data
 
 
 def test_custom_with_invalid_template_is_rejected(client):

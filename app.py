@@ -8,7 +8,7 @@ import datetime
 import os
 import tempfile
 
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template, request
 
 import checker
 import suggest
@@ -17,51 +17,6 @@ from rules import DEFAULT, RULESETS, get_ruleset, rules_notice
 
 app = Flask(__name__)
 app.config["MAX_CONTENT_LENGTH"] = 10 * 1024 * 1024  # 10 MB
-
-PAGE = """
-<!doctype html><title>PaperDesk</title>
-<style>
- body{font-family:system-ui,sans-serif;max-width:760px;margin:2rem auto;padding:0 1rem;line-height:1.5}
- .err{border-left:4px solid #b3261e;padding:.3rem .8rem;margin:.6rem 0;background:#fdf1f0}
- .warn{border-left:4px solid #b26a00;padding:.3rem .8rem;margin:.6rem 0;background:#fff7e8}
- .sug{border-left:4px solid #1a73e8;padding:.3rem .8rem;margin:.6rem 0;background:#eef4ff}
- small{color:#555} code{background:#eee;padding:0 .2rem}
-</style>
-<h1>PaperDesk</h1>
-<p>Pre-submission check for your manuscript. It reports problems; it never rewrites your paper.</p>
-{% if error %}<p class="err"><b>{{ error }}</b></p>{% endif %}
-{% if report is none %}
-<form method="post" action="/check" enctype="multipart/form-data">
-  <p><label>Template:
-    <select name="ruleset">{% for key, label in rulesets %}
-      <option value="{{ key }}"{% if key == current %} selected{% endif %}>{{ label }}</option>{% endfor %}
-    </select></label></p>
-  <p><input type="file" name="paper" accept=".docx" required></p>
-  <p><small>Using Custom? Also choose the journal's own blank template (.docx); its page size, margins and
-    body font become the rules:</small><br><input type="file" name="template" accept=".docx"></p>
-  {% if ai %}<p><label><input type="checkbox" name="wording"> Also show optional wording suggestions
-     (sends paragraph text to an AI service)</label></p>{% endif %}
-  <p><button type="submit">Check my paper</button></p>
-  <small>Word (.docx) only, up to 10 MB.</small>
-</form>
-{% else %}
-<h2>Result: {{ report.errors|length }} errors, {{ report.warns|length }} warnings</h2>
-<p><small>Template: {{ rules }}</small></p>
-{% if notice %}<div class="warn"><b>{{ notice }}</b></div>{% endif %}
-{% if not report.errors and not report.warns %}<p>No problems found against this rule set.</p>{% endif %}
-{% for x in report.errors %}<div class="err"><b>{{ x.rule }}</b>: {{ x.detail }}<br>
-  <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
-{% for x in report.warns %}<div class="warn"><b>{{ x.rule }}</b>: {{ x.detail }}<br>
-  <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
-{% if report.suggestions %}<h2>Optional wording suggestions</h2>
-<p><small>Language only. Check each one yourself and follow your publisher's policy on disclosing AI assistance.</small></p>
-{% for s in report.suggestions %}<div class="sug"><small>Paragraph {{ s.paragraph }} &mdash; {{ s.reason }}</small><br>
- <b>Original:</b> {{ s.original }}<br><b>Suggestion:</b> {{ s.suggestion }}</div>{% endfor %}{% endif %}
-<p><a href="/">Check another paper</a></p>
-<small>This tool checks formatting against a draft rule set; confirm requirements with your conference or journal.</small>
-{% endif %}
-"""
-
 
 CUSTOM = "custom"
 CUSTOM_LABEL = "Custom (read rules from the journal's template)"
@@ -72,8 +27,8 @@ def render(report=None, error=None, status=200, ruleset=DEFAULT, rules=None):
         rules = ({"name": "Custom template", "verified": True,
                   "last_verified": datetime.date.today().isoformat()}
                  if ruleset == CUSTOM else get_ruleset(ruleset))
-    return render_template_string(
-        PAGE, report=report, error=error, ai=suggest.available(), rules=rules["name"],
+    return render_template(
+        "index.html", report=report, error=error, ai=suggest.available(), rules=rules["name"],
         notice=rules_notice(rules), current=ruleset,
         rulesets=[(k, get_ruleset(k)["name"]) for k in RULESETS] + [(CUSTOM, CUSTOM_LABEL)]), status
 
