@@ -113,3 +113,9 @@ def test_clean_report_has_no_scroll_box(client):
 def test_scroll_box_has_fixed_height_css(client):
     css = client.get("/static/style.css").data.decode()
     assert ".findings{" in css and "max-height" in css and "overflow-y:auto" in css
+
+
+def test_custom_template_input_is_only_hidden_when_script_runs(client):
+    css = client.get("/static/style.css").data.decode()
+    assert ".js [data-hidden]{display:none}" in css
+    assert "\n[data-hidden]{display:none}" not in css  # a bare rule would hide it with JS off
