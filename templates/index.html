@@ -67,10 +67,12 @@
 <p class="template-line"><small>Template: {{ rules }}</small></p>
 {% if notice %}<div class="warn banner"><b>{{ notice }}</b></div>{% endif %}
 {% if not report.errors and not report.warns %}<p class="clean">No problems found against this rule set.</p>{% endif %}
+{% if report.errors or report.warns %}<div class="findings" tabindex="0" role="region" aria-label="Findings">
 {% for x in report.errors %}<div class="finding finding-error"><span class="tag tag-error">Error</span> <b>{{ x.rule }}</b>: {{ x.detail }}<br>
   <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
 {% for x in report.warns %}<div class="finding finding-warn"><span class="tag tag-warn">Warning</span> <b>{{ x.rule }}</b>: {{ x.detail }}<br>
   <small>Where: {{ x.where }}<br>Fix: {{ x.fix }}</small></div>{% endfor %}
+</div>{% endif %}
 {% if report.suggestions %}<h2>Optional wording suggestions</h2>
 <p><small>Language only. Check each one yourself and follow your publisher's policy on disclosing AI assistance.</small></p>
 {% for s in report.suggestions %}<div class="sug"><small>Paragraph {{ s.paragraph }} &mdash; {{ s.reason }}</small><br>

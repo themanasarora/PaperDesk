@@ -96,3 +96,20 @@ def test_error_keeps_template_and_message(client):
     r = client.post("/check", data={"ruleset": "springer_lncs"}, content_type="multipart/form-data")
     assert r.status_code == 400 and b"Please choose a .docx file." in r.data
     assert b'name="ruleset" value="springer_lncs" checked' in r.data
+
+
+def test_findings_are_in_a_scroll_box(client):
+    html = post_paper(client, FLAWED).data.decode()
+    box = html.index('class="findings"')
+    assert box < html.index('class="finding finding-error"') < html.index("Check another paper")
+    assert html.index('data-count="errors"') < box          # count cards stay above the box
+    assert html.index("</div>\n", html.rindex('class="finding finding-warn"')) < html.index("Check another paper")
+
+
+def test_clean_report_has_no_scroll_box(client):
+    assert 'class="findings"' not in post_paper(client, CLEAN).data.decode()
+
+
+def test_scroll_box_has_fixed_height_css(client):
+    css = client.get("/static/style.css").data.decode()
+    assert ".findings{" in css and "max-height" in css and "overflow-y:auto" in css
