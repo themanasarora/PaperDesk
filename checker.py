@@ -13,7 +13,7 @@ from dataclasses import dataclass
 
 from docx import Document
 
-from rules import DEFAULT, get_ruleset
+from rules import DEFAULT, get_ruleset, with_defaults
 
 ROMAN = {"I": 1, "V": 5, "X": 10, "L": 50, "C": 100}
 HEADING_RE = re.compile(r"^([IVXLC]+)\.\s+[A-Z][A-Z0-9 ,&\-]+$")
@@ -23,6 +23,9 @@ REF_LINE_RE = re.compile(r"^\[(\d+)\]\s+")
 CITE_RE = re.compile(r"\[([\d,\s–\-]+)\]")
 FIG_REF_RE = re.compile(r"\bFig\.?\s*(\d+)")
 TABLE_REF_RE = re.compile(r"\bTable\s+([IVXLC]+)\b", re.I)
+HEADING_NUM_RE = re.compile(r"^(\d+(?:\.\d+)*)\s+[A-Z]")
+CAPTION_TABLE_ARABIC_RE = re.compile(r"^Table\s+(\d+)\.", re.I)
+TABLE_REF_ARABIC_RE = re.compile(r"\bTable\s+(\d+)\b", re.I)
 
 
 @dataclass
@@ -67,14 +70,29 @@ def expand_cites(group: str):
     return nums
 
 
+def is_numeric_heading(text: str) -> bool:
+    """'1 Introduction', '1.1 Background': a short line with no final period."""
+    return bool(HEADING_NUM_RE.match(text)) and len(text.split()) <= 12 and not text.endswith(".")
+
+
+def table_numbering(rules):
+    """(caption regex, reference regex, parse group -> int, show int -> label)."""
+    if rules["table_numbering"] == "arabic":
+        return CAPTION_TABLE_ARABIC_RE, TABLE_REF_ARABIC_RE, int, str
+    return CAPTION_TABLE_RE, TABLE_REF_RE, lambda g: roman_to_int(g.upper()), int_to_roman
+
+
 def snippet(text: str, n: int = 60) -> str:
     text = " ".join(text.split())
     return text if len(text) <= n else text[: n - 3] + "..."
 
 
-def classify(paragraphs):
+def classify(paragraphs, rules=None):
     """Label each paragraph: title, author, abstract, index, heading,
     caption_fig, caption_table, reference, body, blank."""
+    rules = with_defaults(rules or get_ruleset(DEFAULT))
+    cap_table_re = table_numbering(rules)[0]
+    numeric = rules["heading_style"] == "numeric"
     labels = []
     seen_abstract = False
     for i, p in enumerate(paragraphs):
@@ -90,11 +108,11 @@ def classify(paragraphs):
             labels.append("abstract")
         elif t.lower().startswith("index terms") or t.lower().startswith("keywords"):
             labels.append("index")
-        elif HEADING_RE.match(t) or t == "REFERENCES":
+        elif (is_numeric_heading(t) or t.lower() == "references") if numeric else (HEADING_RE.match(t) or t == "REFERENCES"):
             labels.append("heading")
         elif CAPTION_FIG_RE.match(t):
             labels.append("caption_fig")
-        elif CAPTION_TABLE_RE.match(t):
+        elif cap_table_re.match(t):
             labels.append("caption_table")
         elif REF_LINE_RE.match(t):
             labels.append("reference")
@@ -110,10 +128,10 @@ def effective_font(doc, p, run):
 
 
 def check(path: str, rules=None):
-    rules = rules or get_ruleset(DEFAULT)
+    rules = with_defaults(rules or get_ruleset(DEFAULT))
     doc = Document(path)
     paras = doc.paragraphs
-    labels = classify(paras)
+    labels = classify(paras, rules)
     issues = []
     add = lambda *a: issues.append(Issue(*a))
 
@@ -122,8 +140,8 @@ def check(path: str, rules=None):
     w, h = sec.page_width.inches, sec.page_height.inches
     if abs(w - rules["page_width_in"]) > 0.02 or abs(h - rules["page_height_in"]) > 0.02:
         add("ERROR", "Page size", "document",
-            f"Page is {w:.2f} x {h:.2f} in; expected {rules['page_width_in']} x {rules['page_height_in']} in (US Letter).",
-            "Set the paper size to US Letter.")
+            f"Page is {w:.2f} x {h:.2f} in; expected {rules['page_width_in']} x {rules['page_height_in']} in ({rules['page_name']}).",
+            f"Set the paper size to {rules['page_name']}.")
     tol = rules["margin_tolerance_in"]
     got = {"top": sec.top_margin.inches, "bottom": sec.bottom_margin.inches,
            "left": sec.left_margin.inches, "right": sec.right_margin.inches}
@@ -166,8 +184,8 @@ def check(path: str, rules=None):
 
     # ---- index terms ----
     if rules["require_index_terms"] and "index" not in labels:
-        add("ERROR", "Index terms", "document", "No Index Terms / keywords line found.",
-            "Add an 'Index Terms' line after the abstract.")
+        add("ERROR", "Index terms", "document", f"No {rules['keywords_label']} line found.",
+            f"Add a '{rules['keywords_label']}' line after the abstract.")
 
     # ---- heading order ----
     if rules["heading_style"] == "roman":
@@ -183,6 +201,16 @@ def check(path: str, rules=None):
                     f"Heading numbered {rom} but section {expected} was expected.",
                     "Renumber headings in order (I, II, III, ...).")
                 break  # one report; later numbers follow from this one
+
+    elif rules["heading_style"] == "numeric":
+        seq = [(i, m.group(1)) for i, (p, lab) in enumerate(zip(paras, labels))
+               if lab == "heading" and (m := HEADING_NUM_RE.match(p.text.strip())) and "." not in m.group(1)]
+        for expected, (i, num) in enumerate(seq, 1):
+            if int(num) != expected:
+                add("ERROR", "Heading numbering", f"paragraph {i + 1}: \"{snippet(paras[i].text)}\"",
+                    f"Heading numbered {num} but section {expected} was expected.",
+                    "Renumber headings in order (1, 2, 3, ...).")
+                break
 
     # ---- citations vs references ----
     ref_nums = []
@@ -211,17 +239,18 @@ def check(path: str, rules=None):
 
     # ---- figures and tables ----
     if rules["require_figure_table_references"]:
+        cap_re, ref_re, parse_no, show_no = table_numbering(rules)
         fig_caps = {int(CAPTION_FIG_RE.match(p.text.strip()).group(1))
                     for p, l in zip(paras, labels) if l == "caption_fig"}
-        tab_caps = {roman_to_int(CAPTION_TABLE_RE.match(p.text.strip()).group(1).upper())
+        tab_caps = {parse_no(cap_re.match(p.text.strip()).group(1))
                     for p, l in zip(paras, labels) if l == "caption_table"}
         fig_refs, tab_refs = {}, {}
         for i, (p, lab) in enumerate(zip(paras, labels)):
             if lab in ("body", "abstract"):
                 for m in FIG_REF_RE.finditer(p.text):
                     fig_refs.setdefault(int(m.group(1)), i + 1)
-                for m in TABLE_REF_RE.finditer(p.text):
-                    tab_refs.setdefault(roman_to_int(m.group(1).upper()), i + 1)
+                for m in ref_re.finditer(p.text):
+                    tab_refs.setdefault(parse_no(m.group(1)), i + 1)
         for n, para_no in sorted(fig_refs.items()):
             if n not in fig_caps:
                 add("ERROR", "Figure referenced but missing", f"paragraph {para_no}",
@@ -231,12 +260,12 @@ def check(path: str, rules=None):
             add("WARN", "Figure not referenced", f"Fig. {n}", f"Fig. {n} is never mentioned in the text.",
                 "Refer to it in the text.")
         for n in sorted(tab_caps - set(tab_refs)):
-            add("WARN", "Table not referenced", f"Table {int_to_roman(n)}",
-                f"Table {int_to_roman(n)} is never mentioned in the text.", "Refer to it in the text.")
+            add("WARN", "Table not referenced", f"Table {show_no(n)}",
+                f"Table {show_no(n)} is never mentioned in the text.", "Refer to it in the text.")
         for n, para_no in sorted(tab_refs.items()):
             if n not in tab_caps:
                 add("ERROR", "Table referenced but missing", f"paragraph {para_no}",
-                    f"Table {int_to_roman(n)} is mentioned but no caption exists.",
+                    f"Table {show_no(n)} is mentioned but no caption exists.",
                     "Insert the table or fix the number.")
 
     # ---- double spaces ----
