@@ -119,3 +119,23 @@ def test_custom_template_input_is_only_hidden_when_script_runs(client):
     css = client.get("/static/style.css").data.decode()
     assert ".js [data-hidden]{display:none}" in css
     assert "\n[data-hidden]{display:none}" not in css  # a bare rule would hide it with JS off
+
+
+def test_wording_suggestions_never_get_auto_numbered_reference_entries(client, monkeypatch, tmp_path):
+    from test_real_paper_quirks import Paper, words
+    paper = Paper()
+    paper.body("A normal body paragraph that is long enough to be offered for wording. " + words(12))
+    for k in range(2):                      # numbered by Word, no "References" heading before them
+        p = paper._add(f"Writer A, long title number {k} " + words(16), 8, style="List Paragraph")
+        from docx_helpers import number_paragraph
+        number_paragraph(p, 1, 0)
+    path = tmp_path / "p.docx"
+    paper.doc.save(path)
+    sent = {}
+    monkeypatch.setattr("suggest.available", lambda: True)
+    monkeypatch.setattr("suggest.suggest", lambda body: sent.setdefault("body", body) and [])
+    r = client.post("/check", data={"ruleset": "ieee_conference", "wording": "on",
+                                    "paper": (open(path, "rb"), "p.docx")},
+                    content_type="multipart/form-data")
+    assert r.status_code == 200
+    assert [text[:20] for _n, text in sent["body"]] == ["A normal body paragr"]

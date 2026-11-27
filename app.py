@@ -11,6 +11,7 @@ import tempfile
 from flask import Flask, render_template, request
 
 import checker
+import numbering
 import suggest
 import template_rules
 from rules import DEFAULT, RULESETS, get_ruleset, rules_notice
@@ -100,7 +101,7 @@ def check_upload():
             if request.form.get("wording") and suggest.available():
                 from docx import Document
                 doc = Document(tmp.name)
-                labels = checker.classify(doc.paragraphs, rules)
+                labels = checker.classify(doc.paragraphs, rules, numbering.rendered_labels(doc))
                 body = [(i + 1, p.text.strip()) for i, (p, l) in enumerate(zip(doc.paragraphs, labels))
                         if l == "body" and len(p.text.split()) >= 15]
                 try:
