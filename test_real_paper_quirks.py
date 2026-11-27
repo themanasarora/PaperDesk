@@ -357,3 +357,59 @@ def test_a_paper_with_every_quirk_and_two_real_problems(paper, tmp_path):
     paper.references(3)
     got = paper.issues(tmp_path)
     assert counts(got) == {"Body text style": 1, "Heading numbering": 1}
+
+
+# ---------------- gaps found by mutation testing ----------------
+
+def _classified(paper):
+    paras = paper.doc.paragraphs
+    return list(zip([p.text[:14] for p in paras], checker.classify(paras, IEEE)))
+
+
+@pytest.mark.parametrize("letter", ["C", "D", "L", "M"])
+def test_letter_subheadings_that_look_like_big_roman_numerals_are_subheadings(letter):
+    assert checker.heading_number(f"{letter}. Dataset details") == ("sub", None)
+
+
+def test_letter_subheading_c_is_not_a_numbering_problem(paper, tmp_path):
+    paper.heading("I. Method", style="Heading 1")
+    paper.heading("A. First", style="Heading 2")
+    paper.heading("B. Second", style="Heading 2")
+    paper.heading("C. Third", style="Heading 2")
+    paper.heading("D. Fourth", style="Heading 2")
+    assert rules_of(paper.issues(tmp_path), "Heading numbering") == []
+
+
+def test_unnumbered_reference_entries_that_start_like_a_roman_heading_stay_reference_text(paper):
+    paper.heading("References", style="Normal")
+    for text in ("I. Goodfellow, Y. Bengio, Deep Learning, MIT Press", "V. Vapnik, Statistical Learning Theory, Wiley"):
+        paper.doc.add_paragraph(text)
+    assert [lab for _t, lab in _classified(paper)][-2:] == ["reference_text", "reference_text"]
+
+
+def test_references_heading_in_capitals_still_opens_the_reference_list(paper):
+    paper.heading("REFERENCES", style="Normal")
+    paper.doc.add_paragraph("A. Writer, Title, 2020")
+    assert [lab for _t, lab in _classified(paper)][-2:] == ["heading", "reference_text"]
+
+
+def test_long_paragraph_after_a_bare_table_label_is_body_text_not_a_caption(paper):
+    paper.table_caption("TABLE I", title=words(40))
+    assert [lab for _t, lab in _classified(paper)][-2:] == ["caption_table", "body"]
+
+
+def test_short_line_after_a_bare_table_label_is_its_title(paper):
+    paper.table_caption("TABLE I", title="Results of runs")
+    assert [lab for _t, lab in _classified(paper)][-2:] == ["caption_table", "caption_text"]
+
+
+def test_appendix_heading_needs_no_number(paper, tmp_path):
+    paper.heading("I. Method", style="Heading 1")
+    paper.heading("Appendix", style="Heading 1")
+    assert rules_of(paper.issues(tmp_path), "Heading numbering") == []
+
+
+def test_ordinary_unnumbered_heading_is_still_reported(paper, tmp_path):
+    paper.heading("I. Method", style="Heading 1")
+    paper.heading("Discussion", style="Heading 1")
+    assert len(rules_of(paper.issues(tmp_path), "Heading numbering")) == 1

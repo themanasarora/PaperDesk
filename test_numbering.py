@@ -228,3 +228,22 @@ def test_random_numbering_setups_never_crash_and_keep_length():
                  for i in range(rng.randint(0, 12))]
         got = labels(specs, abstracts, nums)
         assert len(got) == len(specs) and all(isinstance(x, str) for x in got)
+
+
+# ---- gaps found by mutation testing ----
+
+def test_numbered_paragraphs_inside_text_boxes_do_not_advance_the_list():
+    doc = numbered_doc([("a", 1, 0), ("c", 1, 0)], {0: {0: ("decimal", "%1.", 1)}}, ONE)
+    box = parse_xml(
+        f'<w:p {nsdecls("w")} xmlns:v="urn:schemas-microsoft-com:vml"><w:r><w:pict><v:shape><v:textbox>'
+        '<w:txbxContent><w:p><w:pPr><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
+        '<w:r><w:t>boxed</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>')
+    doc.paragraphs[0]._p.addnext(box)          # a, <paragraph holding the text box>, c
+    assert rendered_labels(doc) == ["1.", "", "2."]
+
+
+def test_new_list_instance_override_replaces_a_running_count_seen_from_a_deeper_level():
+    abstracts = {0: {0: ("decimal", "%1.", 1), 1: ("decimal", "%1.%2", 1)}}
+    nums = {1: (0, {}), 2: (0, {0: 5})}
+    specs = [("a", 1, 0), ("b", 1, 0), ("c", 1, 0), ("d", 2, 1)]
+    assert labels(specs, abstracts, nums) == ["1.", "2.", "3.", "5.1"]
